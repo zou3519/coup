@@ -113,10 +113,15 @@ object Rules {
     val targetPlayer = challenge.targetPlayer
     lastActionOpt match {
       case None => false
-      case Some(lastAction) =>
-        lastAction.isInstanceOf[Challenge] &&
-        targetPlayer == lastAction.player &&
-        player != targetPlayer
+      case Some(lastAction) => {
+        lastAction match {
+          case _: Income => false
+          case _: ForeignAid => false
+          case _: Coup => false
+          case _: Challenge => false
+          case _ => targetPlayer == lastAction.player && player != targetPlayer
+        }
+      }
     }
   }
 

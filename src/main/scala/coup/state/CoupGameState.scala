@@ -14,7 +14,6 @@ class CoupGameState(
     val discardPile: Seq[Character],
     val coins: IndexedSeq[Int],
     val influences: IndexedSeq[Seq[Character]],
-    val currentPlayer: PlayerT,
     val currentPlay: Seq[Action],
     val pendingStages: Queue[PendingStage],
     val ambassadorDeck: Seq[Action]) {
@@ -39,9 +38,59 @@ class CoupGameState(
     }
   }
 
-  private def applyIncome(income: Income): CoupGameState = ???
+  def copy(
+      courtDeck: Seq[Character] = courtDeck,
+      discardPile: Seq[Character] = discardPile,
+      coins: IndexedSeq[Int] = coins,
+      influences: IndexedSeq[Seq[Character]] = influences,
+      currentPlay: Seq[Action] = currentPlay,
+      pendingStages: Queue[PendingStage] = pendingStages,
+      ambassadorDeck: Seq[Action] = ambassadorDeck): CoupGameState = {
+    new CoupGameState(
+      courtDeck,
+      discardPile,
+      coins,
+      influences,
+      currentPlay,
+      pendingStages,
+      ambassadorDeck
+    )
+  }
+
+  private def nextPlayer(player: PlayerT) = {
+    (player + 1) % 2
+  }
+
+  private def applyIncome(income: Income): CoupGameState = {
+    val player = income.player
+    val newIncome = coins(player) + 1
+    val newPendingStages = pendingStages.drop(1) :+ Reaction(nextPlayer(player))
+
+    copy(
+      coins = coins.updated(player, newIncome),
+      currentPlay = currentPlay :+ income,
+      pendingStages = newPendingStages
+    )
+  }
+
   private def applyForeignAid(foreignAid: ForeignAid): CoupGameState = ???
-  private def applyCoup(coup: Coup): CoupGameState = ???
+
+  private def applyCoup(coup: Coup): CoupGameState = {
+    val player = coup.player
+    val targetPlayer = coup.targetPlayer
+    val newPendingStages =
+      pendingStages.drop(1) :+
+        DiscardInfluence(targetPlayer) :+
+        PrimaryAction(nextPlayer(player))
+    val newIncome = coins(player) - 7
+
+    copy(
+      coins = coins.updated(player, newIncome),
+      currentPlay = currentPlay :+ coup,
+      pendingStages = newPendingStages
+    )
+  }
+
   private def applyTax(tax: Tax): CoupGameState = ???
   private def applyExchange(exchange: Exchange): CoupGameState = ???
   private def applySteal(steal: Steal): CoupGameState = ???
