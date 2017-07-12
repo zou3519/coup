@@ -1,4 +1,4 @@
-package coup.state
+package coup.core
 
 object Rules {
 
@@ -11,7 +11,7 @@ object Rules {
       case coup: Coup => isCoupOK(gameState, coup)
 
       case tax: Tax => isNonCoupPrimaryActionOK(gameState, tax)
-      case exchange: Exchange => isNonCoupPrimaryActionOK(gameState, exchange)
+      case exchange: ChooseExchange => isNonCoupPrimaryActionOK(gameState, exchange)
 
       case assassinate: Assassinate => isAssassinateOK(gameState, assassinate)
       case steal: Steal => isStealOK(gameState, steal)
@@ -155,7 +155,7 @@ object Rules {
       resolveExchange: ResolveExchange): Boolean =  {
     val player = resolveExchange.player
     gameState.pendingStages.front match {
-      case Exchange(exchgPlayer) =>
+      case ChooseExchange(exchgPlayer) =>
         exchgPlayer == player
         // TODO: validate exchanged cards
       case _ => false

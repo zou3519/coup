@@ -1,4 +1,4 @@
-package coup.state
+package coup.core
 
 sealed trait Action {
   val player: PlayerT

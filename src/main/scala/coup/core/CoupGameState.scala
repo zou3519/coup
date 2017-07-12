@@ -1,6 +1,34 @@
-package coup.state
+package coup.core
 
 import scala.collection.immutable.Queue
+import scala.collection.immutable.Seq
+import scala.util.Random
+
+/**
+  * Initializer object
+  */
+object CoupGameState {
+  def init: CoupGameState = {
+    val numPlayers = 2
+
+    // Generate court deck and influences
+    val allCards = Character.characters.flatMap(x => Seq(x, x, x))
+    val shuffledCards = Random.shuffle(allCards)
+
+    val (dealtCards, courtDeck) = shuffledCards.splitAt(numPlayers * 2)
+    val influences = dealtCards.grouped(2).toIndexedSeq
+
+    new CoupGameState(
+      courtDeck,              // deck
+      PlayerPiles.fill(numPlayers)(Seq()), // discardPile
+      PlayerPiles.fill(numPlayers)(2),     // coins
+      influences,             // influences
+      Seq(),                  // currentPlay
+      Queue(PrimaryAction(0)),// pendingStages
+      None                    // ambassadorDeck
+    )
+  }
+}
 
 /**
   * Encapsulates the state of the game at any time.
@@ -10,42 +38,23 @@ import scala.collection.immutable.Queue
   *                     An action, resolving exchange, or discard
   */
 class CoupGameState(
-    val courtDeck: Seq[Character],
-    val discardPile: Seq[Character],
-    val coins: IndexedSeq[Int],
-    val influences: IndexedSeq[Seq[Character]],
+    val courtDeck: Cards,
+    val discardPile: PlayerPiles[Cards],
+    val coins: PlayerPiles[Int],
+    val influences: PlayerPiles[Cards],
     val currentPlay: Seq[Action],
     val pendingStages: Queue[PendingStage],
-    val ambassadorDeck: Seq[Action]) {
+    val ambassadorDeck: Option[Cards]) {
 
-  def nextState(action: Action): CoupGameState = {
-    require(Rules.isActionLegal(this, action))
-
-    action match {
-      case income: Income => applyIncome(income)
-      case foreignAid: ForeignAid => applyForeignAid(foreignAid)
-      case coup: Coup => applyCoup(coup)
-      case tax: Tax => applyTax(tax)
-      case exchange: Exchange => applyExchange(exchange)
-      case steal: Steal => applySteal(steal)
-      case assassinate: Assassinate => applyAssassinate(assassinate)
-      case block: Block => applyBlock(block)
-      case challenge: Challenge => applyChallenge(challenge)
-      case noReaction: NoReaction => applyNoReaction(noReaction)
-      case resolveExchange: ResolveExchange => applyResolveExchange(resolveExchange)
-      case loseInfluence: LoseInfluence => applyLoseInfluence(loseInfluence)
-      case proveInfluence: ProveInfluence => applyProveInfluence(proveInfluence)
-    }
-  }
-
+  /* Shortcut to copying this object */
   def copy(
-      courtDeck: Seq[Character] = courtDeck,
-      discardPile: Seq[Character] = discardPile,
-      coins: IndexedSeq[Int] = coins,
-      influences: IndexedSeq[Seq[Character]] = influences,
-      currentPlay: Seq[Action] = currentPlay,
-      pendingStages: Queue[PendingStage] = pendingStages,
-      ambassadorDeck: Seq[Action] = ambassadorDeck): CoupGameState = {
+            courtDeck: Cards = courtDeck,
+            discardPile: PlayerPiles[Cards] = discardPile,
+            coins: PlayerPiles[Int] = coins,
+            influences: PlayerPiles[Cards] = influences,
+            currentPlay: Seq[Action] = currentPlay,
+            pendingStages: Queue[PendingStage] = pendingStages,
+            ambassadorDeck: Option[Cards] = ambassadorDeck): CoupGameState = {
     new CoupGameState(
       courtDeck,
       discardPile,
@@ -55,6 +64,50 @@ class CoupGameState(
       pendingStages,
       ambassadorDeck
     )
+  }
+
+  /* From the view of a player */
+  def toPartialGameState(player: PlayerT): CoupPartialGameState = {
+
+    // Hide ambassador deck if necessary
+    val showAmbassadorDeck = pendingStages.front match {
+      case ChooseExchange(requestedPlayer) =>
+        if (requestedPlayer == player) ambassadorDeck else None
+      case _ => None
+    }
+
+    new CoupPartialGameState(
+      courtDeck.length,
+      discardPile,
+      coins,
+      influences(player),
+      influences(nextPlayer(player)).size, // assumes 2p
+      currentPlay,
+      pendingStages,
+      showAmbassadorDeck,
+      player
+    )
+  }
+
+  /* Apply the action */
+  def nextState(action: Action): CoupGameState = {
+    require(Rules.isActionLegal(this, action))
+
+    action match {
+      case income: Income => applyIncome(income)
+      case foreignAid: ForeignAid => applyForeignAid(foreignAid)
+      case coup: Coup => applyCoup(coup)
+      case tax: Tax => applyTax(tax)
+      case exchange: ChooseExchange => applyExchange(exchange)
+      case steal: Steal => applySteal(steal)
+      case assassinate: Assassinate => applyAssassinate(assassinate)
+      case block: Block => applyBlock(block)
+      case challenge: Challenge => applyChallenge(challenge)
+      case noReaction: NoReaction => applyNoReaction(noReaction)
+      case resolveExchange: ResolveExchange => applyResolveExchange(resolveExchange)
+      case loseInfluence: LoseInfluence => applyLoseInfluence(loseInfluence)
+      case proveInfluence: ProveInfluence => applyProveInfluence(proveInfluence)
+    }
   }
 
   private def nextPlayer(player: PlayerT) = {
@@ -92,7 +145,7 @@ class CoupGameState(
   }
 
   private def applyTax(tax: Tax): CoupGameState = ???
-  private def applyExchange(exchange: Exchange): CoupGameState = ???
+  private def applyExchange(exchange: ChooseExchange): CoupGameState = ???
   private def applySteal(steal: Steal): CoupGameState = ???
   private def applyAssassinate(assassinate: Assassinate): CoupGameState = ???
   private def applyBlock(block: Block): CoupGameState = ???
