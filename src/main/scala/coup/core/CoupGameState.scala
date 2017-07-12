@@ -117,11 +117,11 @@ class CoupGameState(
   private def applyIncome(income: Income): CoupGameState = {
     val player = income.player
     val newIncome = coins(player) + 1
-    val newPendingStages = pendingStages.drop(1) :+ Reaction(nextPlayer(player))
+    val newPendingStages = pendingStages.drop(1) :+ PrimaryAction(nextPlayer(player))
 
     copy(
       coins = coins.updated(player, newIncome),
-      currentPlay = currentPlay :+ income,
+      currentPlay = currentPlay,
       pendingStages = newPendingStages
     )
   }
