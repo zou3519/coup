@@ -9,11 +9,11 @@ class Human extends Player {
     val nextPlayer = (player + 1) % 2
     var done = false
 
-    PrettyPrinter.printPartialGameState(partialCoupGameState)
+    Layout.printPartialGameState(partialCoupGameState)
     val option = readLine(s"Player $player's turn\n1. Income\n2. Coup\n>> ")
     option.stripLineEnd match {
       case "2" => Coup(player, nextPlayer)
-      case "1" => Income(player)
+      case _ => Income(player)
     }
   }
 }

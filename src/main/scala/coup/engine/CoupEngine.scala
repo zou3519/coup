@@ -13,6 +13,7 @@ object CoupEngine {
       val action = players(currentPlayer).getAction(
         gameState.toPartialGameState(currentPlayer)
       )
+      println("Action: " + action)
       gameState = gameState.nextState(action)
     }
   }

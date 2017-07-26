@@ -2,13 +2,14 @@ package coup.engine
 
 import coup.core.{CoupGameState, CoupPartialGameState}
 
-object PrettyPrinter {
+object Layout {
 
   def printGameState(gameState: CoupGameState): Unit = {
 
   }
 
   def printPartialGameState(partialGameState: CoupPartialGameState): Unit = {
+    print("\u001b[2J\n")
     println("------------------ PartialGameState dump ------------------")
     println("Deck: " + partialGameState.courtDeckSize)
     println("Discard: " + partialGameState.discardPile)

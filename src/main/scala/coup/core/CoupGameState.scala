@@ -152,6 +152,17 @@ class CoupGameState(
   private def applyChallenge(challenge: Challenge): CoupGameState = ???
   private def applyNoReaction(noReaction: NoReaction): CoupGameState = ???
   private def applyResolveExchange(resolveExchange: ResolveExchange): CoupGameState = ???
-  private def applyLoseInfluence(loseInfluence: LoseInfluence): CoupGameState = ???
+
+  private def applyLoseInfluence(loseInfluence: LoseInfluence): CoupGameState = {
+    val player = loseInfluence.player
+    val newInfluences = influences(player).diff(Seq(loseInfluence.lostCharacter))
+
+    copy(
+      influences = influences.updated(player, newInfluences),
+      currentPlay = Seq(),
+      pendingStages = pendingStages.drop(1)
+    )
+  }
+
   private def applyProveInfluence(proveInfluence: ProveInfluence): CoupGameState = ???
 }

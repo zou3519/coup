@@ -46,7 +46,7 @@ object Rules {
     gameState.pendingStages.front match {
       case PrimaryAction(actionPlayer) =>
         player == actionPlayer &&
-          gameState.coins(player) >= 10 &&
+          gameState.coins(player) >= 7 &&
           player != targetPlayer
       case _ => false
     }
