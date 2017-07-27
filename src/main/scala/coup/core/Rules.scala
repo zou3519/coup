@@ -2,6 +2,68 @@ package coup.core
 
 object Rules {
 
+  def legalActions(partialGameState: CoupPartialGameState): IndexedSeq[Action] = {
+    partialGameState.pendingStages.front match {
+      case _: PrimaryAction => legalPrimaryActions(partialGameState)
+      case _: Reaction => legalReactions(partialGameState)
+      case _: ChooseExchange => legalChooseExchanges(partialGameState)
+      case _: DiscardInfluence => legalDiscardInfluences(partialGameState)
+      case _: ExamineInfluence => legalExamineInfluences(partialGameState)
+    }
+  }
+
+  private def legalPrimaryActions(
+      partialGameState: CoupPartialGameState): IndexedSeq[Action] = {
+    val player = partialGameState.pendingStages.front.player
+    val nextPlayer = (player + 1) % 2
+
+    val builder = IndexedSeq.newBuilder[Action]
+    builder += (
+      Income(player),
+      ForeignAid(player),
+      Tax(player),
+      Exchange(player),
+      Steal(player, nextPlayer)
+    )
+
+    if (partialGameState.coins(player) >= 3)
+      builder += Assassinate(player, nextPlayer)
+
+    if (partialGameState.coins(player) >= 7)
+      builder += Coup(player, nextPlayer)
+
+    builder.result
+  }
+
+  private def legalReactions(
+      partialGameState: CoupPartialGameState): IndexedSeq[Action] = {
+    val player = partialGameState.pendingStages.front.player
+    val nextPlayer = (player + 1) % 2
+
+    val builder = IndexedSeq.newBuilder[Action]
+    val lastAction = partialGameState.currentPlay.last
+
+    if (canBeBlocked(lastAction))
+      builder += Block(player, nextPlayer)
+
+    if (canBeChallenged(lastAction))
+      builder += Challenge(player, nextPlayer)
+
+    if (canBeReactedTo(lastAction))
+      builder += NoReaction(player)
+
+    builder.result
+  }
+
+  private def legalChooseExchanges(
+      partialGameState: CoupPartialGameState): IndexedSeq[Action] = ???
+
+  private def legalDiscardInfluences(
+      partialGameState: CoupPartialGameState): IndexedSeq[Action] = ???
+
+  private def legalExamineInfluences(
+      partialGameState: CoupPartialGameState): IndexedSeq[Action] = ???
+
   def isActionLegal(gameState: CoupGameState, action: Action): Boolean = {
     action match {
 
@@ -113,15 +175,18 @@ object Rules {
     val targetPlayer = challenge.targetPlayer
     lastActionOpt match {
       case None => false
-      case Some(lastAction) => {
-        lastAction match {
-          case _: Income => false
-          case _: ForeignAid => false
-          case _: Coup => false
-          case _: Challenge => false
-          case _ => targetPlayer == lastAction.player && player != targetPlayer
-        }
-      }
+      case Some(lastAction) => canBeChallenged(lastAction)
+    }
+  }
+
+  private def canBeChallenged(action: Action): Boolean = {
+    action match {
+      case _: Tax => true
+      case _: Exchange => true
+      case _: Steal => true
+      case _: Assassinate => true
+      case _: Block => true
+      case _ => false
     }
   }
 
@@ -142,12 +207,7 @@ object Rules {
   }
 
   private def canBeReactedTo(action: Action): Boolean = {
-    action match {
-      case Coup(_, _) => false
-      case Challenge(_, _) => false
-      case Income(_) => false
-      case _ => true
-    }
+    canBeChallenged(action) || canBeBlocked(action)
   }
 
   def isResolveExchangeOK(

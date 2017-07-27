@@ -91,7 +91,8 @@ class CoupGameState(
 
   /* Apply the action */
   def nextState(action: Action): CoupGameState = {
-    require(Rules.isActionLegal(this, action))
+    // TODO: I broke the below... create a mixin trait that combines partial and full game states
+    // require(Rules.isActionLegal(this, action))
 
     action match {
       case income: Income => applyIncome(income)

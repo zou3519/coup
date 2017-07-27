@@ -25,5 +25,4 @@ case class NoReaction(player: PlayerT) extends Action
 /* Resolutions */
 case class ResolveExchange(player: PlayerT, returnedCharacters: Seq[Character]) extends Action
 case class LoseInfluence(player: PlayerT, lostCharacter: Character) extends Action
-case class LoseDoubleInfluence(player: PlayerT, lostCharacters: Seq[Character]) extends Action
 case class ProveInfluence(player: PlayerT, provenCharacter: Character) extends Action

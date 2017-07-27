@@ -2,18 +2,22 @@ package coup.engine
 
 import coup.core.CoupGameState
 
+import scala.concurrent.Await
+import scala.concurrent.duration._
+
 object CoupEngine {
-  def gameLoop: Unit = {
+
+  def gameLoop(): Unit = {
     var gameState = CoupGameState.init
-    var running = true
     val players = IndexedSeq(new Human, new Human)
 
-    while (running) {
+    // TODO: rewrite in terms of future composition?
+    while (true) {
       val currentPlayer = gameState.pendingStages.front.player
-      val action = players(currentPlayer).getAction(
+      val futureAction = players(currentPlayer).getAction(
         gameState.toPartialGameState(currentPlayer)
       )
-      println("Action: " + action)
+      val action = Await.result(futureAction, Duration.Inf)
       gameState = gameState.nextState(action)
     }
   }

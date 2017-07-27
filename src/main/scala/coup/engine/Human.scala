@@ -1,19 +1,17 @@
 package coup.engine
 
-import scala.io.StdIn._
 import coup.core.{Action, Coup, CoupPartialGameState, Income}
 
+import scala.concurrent.Future
+
 class Human extends Player {
-  override def getAction(partialCoupGameState: CoupPartialGameState): Action = {
+
+  override def getAction(partialCoupGameState: CoupPartialGameState): Future[Action] = {
     val player = partialCoupGameState.me
     val nextPlayer = (player + 1) % 2
-    var done = false
 
-    Layout.printPartialGameState(partialCoupGameState)
-    val option = readLine(s"Player $player's turn\n1. Income\n2. Coup\n>> ")
-    option.stripLineEnd match {
-      case "2" => Coup(player, nextPlayer)
-      case _ => Income(player)
-    }
+    println(Describe.partialGameState(partialCoupGameState))
+    val possibleActions = IndexedSeq(Income(player), Coup(player, nextPlayer))
+    Prompt.promptAction(possibleActions)
   }
 }
