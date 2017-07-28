@@ -1,6 +1,6 @@
 package coup.engine
 
-import coup.core.{Action, Coup, CoupPartialGameState, Income}
+import coup.core._
 
 import scala.concurrent.Future
 
@@ -11,7 +11,7 @@ class Human extends Player {
     val nextPlayer = (player + 1) % 2
 
     println(Describe.partialGameState(partialCoupGameState))
-    val possibleActions = IndexedSeq(Income(player), Coup(player, nextPlayer))
+    val possibleActions = Rules.legalActions(partialCoupGameState)
     Prompt.promptAction(possibleActions)
   }
 }

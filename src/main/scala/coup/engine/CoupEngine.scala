@@ -11,8 +11,7 @@ object CoupEngine {
     val gameState = CoupGameState.init
     val players = IndexedSeq(new Human, new Human)
 
-    // TODO: rewrite in terms of future composition?
-    while (true) {
+    while (gameState.pendingStages.nonEmpty) {
       val currentPlayer = gameState.pendingStages.head.player
       val futureAction = players(currentPlayer).getAction(
         gameState.toPartialGameState(currentPlayer)
@@ -20,5 +19,10 @@ object CoupEngine {
       val action = Await.result(futureAction, Duration.Inf)
       gameState.applyAction(action)
     }
+
+    // Confirm that someone has actually lost
+    require(gameState.influences.exists(_.isEmpty))
+    println(Describe.gameState(gameState))
+    println("Game Over")
   }
 }

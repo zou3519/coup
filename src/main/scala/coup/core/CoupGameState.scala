@@ -35,7 +35,8 @@ object CoupGameState {
   *
   * @param _currentPlay Sequence of Actions that have just happened.
   * @param _pendingStages What the game state is currently waiting on.
-  *                     An action, resolving exchange, or discard
+  *                       An action, resolving exchange, or discard.
+  *                       When this is empty, the game is over.
   */
 class CoupGameState(
     private val _courtDeck: mu.Cards,
@@ -47,11 +48,25 @@ class CoupGameState(
     private var _ambassadorDeck: Option[mu.Cards]) {
 
   /* (slow) Accessors */
+  def courtDeck: Cards = _courtDeck.toVector
+  def discardPile: PlayerPiles[Cards] = _discardPile.map(_.toVector).toVector
   def coins: PlayerPiles[Int] = _coins.toVector
   def influences: PlayerPiles[Cards] = _influences.map(_.toVector).toVector
   def currentPlay: Vector[Action] = _currentPlay.toVector
   def pendingStages: Vector[PendingStage] = _pendingStages.toVector
   def ambassadorDeck: Option[Cards] = _ambassadorDeck.map(_.toVector)
+
+  def copy: CoupGameState = {
+    new CoupGameState(
+      _courtDeck.clone,
+      _discardPile.map(_.clone),
+      _coins.clone,
+      _influences.map(_.clone),
+      _currentPlay.clone,
+      _pendingStages.clone,
+      _ambassadorDeck.map(_.clone)
+    )
+  }
 
   /* From the view of a player */
   def toPartialGameState(player: PlayerT): CoupPartialGameState = {
@@ -81,6 +96,7 @@ class CoupGameState(
     require(Rules.isActionLegal(this, action))
 
     _pendingStages.dequeue()
+    _currentPlay.append(action)
 
     action match {
       case income: Income => applyIncome(income)
@@ -106,20 +122,17 @@ class CoupGameState(
   private def applyIncome(income: Income): Unit = {
     val player = income.player
     _coins(player) += 1
-    _pendingStages.enqueue(PrimaryAction(nextPlayer(player)))
+    nextTurn()
   }
 
   private def applyCoup(coup: Coup): Unit = {
     val player = coup.player
     val targetPlayer = coup.targetPlayer
     _coins(player) -= 7
-    _pendingStages.enqueue(
-      DiscardInfluence(targetPlayer),
-      PrimaryAction(nextPlayer(player)))
+    _pendingStages.enqueue(DiscardInfluence(targetPlayer))
   }
 
   private def applyReactableAction(action: Action): Unit = {
-    _currentPlay.append(action)
     _pendingStages.enqueue(Reaction(nextPlayer(action.player)))
   }
 
@@ -129,16 +142,16 @@ class CoupGameState(
   }
 
   private def applyChallenge(challenge: Challenge): Unit = {
-    _currentPlay.append(challenge)
     _pendingStages.enqueue(ExamineInfluence(nextPlayer(challenge.player)))
   }
 
 
   private def applyDoNothing(doNothing: DoNothing): Unit = {
-    val nextPlayer = nextPlayer(_currentPlay.head.player)
-    _pendingStages.enqueue(PrimaryAction(nextPlayer))
-    val action = actionToResolve(_currentPlay, topActionSucceeds = true)
-    action.foreach(resolveAction)
+    val actionOpt = actionToResolve(_currentPlay.dropRight(1), topActionSucceeds = true)
+    actionOpt match {
+      case Some(action) => resolveAction(action)
+      case None => nextTurn()
+    }
   }
 
   // always clears actionStack
@@ -158,7 +171,15 @@ class CoupGameState(
     }
 
     if (topActionSucceeds) {
-      // next pending action is cancelled out
+      // Top action should be either ProveInfluence, Challenge, or Block.
+      // When it succeeds, the one below it should fail.
+
+      if (pendingAction.isInstanceOf[Challenge] &&
+          actionStack.last.isInstanceOf[Assassinate]) {
+        // If assassinate is successfully challenged, coins are returned
+        _coins(actionStack.last.player) += 3
+      }
+
       actionStack.trimEnd(1)
     }
 
@@ -169,24 +190,53 @@ class CoupGameState(
 
   private def applyResolveExchange(resolveExchange: ResolveExchange): Unit = ???
 
+  // TODO: this is really messy. cleanup sometime.
   private def applyLoseInfluence(loseInfluence: LoseInfluence): Unit = {
     val player = loseInfluence.player
+
     _influences(player) -= loseInfluence.lostCharacter
-
-    // two cases: 1. challenge was conceded/lost or 2. player coup'ed or assassinated
-
-    // case 1: challenge was lost
-    if (_currentPlay.last.isInstanceOf[Challenge]) {
-      val action = actionToResolve(_currentPlay, topActionSucceeds = true)
-      action.foreach(resolveAction)
+    _discardPile(player) += loseInfluence.lostCharacter
+    if (_influences(player).isEmpty) {
+      endGame()
       return
     }
 
-    // case 2: player was coup'ed or assassinated
-    _currentPlay.clear()
+    // two cases: 1. challenge happened or 2. player coup'ed or assassinated
+
+    // case 1: challenge happened
+    val prevAction = _currentPlay(_currentPlay.size - 2)
+    if (prevAction.isInstanceOf[Challenge] ||
+        prevAction.isInstanceOf[ProveInfluence]) {
+
+      // figure out which actions go through
+      val actionOpt = actionToResolve(_currentPlay.clone(), topActionSucceeds = true)
+      actionOpt match {
+        case Some(action) => resolveAction(action)
+        case None => nextTurn()
+      }
+
+    // case 2: player coup'ed or assassinated
+    } else {
+      nextTurn()
+    }
   }
 
-  private def applyProveInfluence(proveInfluence: ProveInfluence): Unit = ???
+  private def endGame(): Unit = {
+    require(_influences.exists(_.isEmpty))
+
+    _currentPlay.clear()
+    _pendingStages.clear()
+  }
+
+  private def applyProveInfluence(proveInfluence: ProveInfluence): Unit = {
+    // TODO: shuffle the revealed influence back in and draw new one
+
+    _currentPlay.append(proveInfluence)
+
+    // Next player should lose influence
+    val otherPlayer = nextPlayer(proveInfluence.player)
+    _pendingStages.enqueue(DiscardInfluence(otherPlayer))
+  }
 
   private def resolveAction(pendingAction: Action): Unit = {
     pendingAction match {
@@ -194,16 +244,24 @@ class CoupGameState(
       case foreignAid: ForeignAid => resolveForeignAid(foreignAid)
       case steal: Steal => resolveSteal(steal)
       case assassinate: Assassinate => resolveAssassinate(assassinate)
-      case _ => ??? // Should not be here...
+      case _ => ???
     }
+  }
+
+  private def nextTurn(): Unit = {
+    val otherPlayer = nextPlayer(_currentPlay.head.player)
+    _currentPlay.clear()
+    _pendingStages.enqueue(PrimaryAction(otherPlayer))
   }
 
   private def resolveForeignAid(foreignAid: ForeignAid): Unit = {
     _coins(foreignAid.player) += 2
+    nextTurn()
   }
 
   private def resolveTax(tax: Tax): Unit = {
     _coins(tax.player) += 3
+    nextTurn()
   }
 
   private def resolveSteal(steal: Steal): Unit = {
@@ -211,11 +269,11 @@ class CoupGameState(
     val player = steal.player
     val stolenCoins = if (_coins(targetPlayer) < 2) _coins(targetPlayer) else 2
     _coins(player) += stolenCoins
-    _coins(targetPlayer) += stolenCoins
+    _coins(targetPlayer) -= stolenCoins
+    nextTurn()
   }
 
-  private def resolveAssassinate(assassinate: Assassinate): Unit = ???
-
-
-
+  private def resolveAssassinate(assassinate: Assassinate): Unit = {
+    _pendingStages.enqueue(DiscardInfluence(assassinate.targetPlayer))
+  }
 }

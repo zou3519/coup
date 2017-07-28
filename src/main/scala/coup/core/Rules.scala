@@ -17,6 +17,11 @@ object Rules {
     val player = partialGameState.pendingStages.head.player
     val nextPlayer = (player + 1) % 2
 
+    // Must coup
+    if (partialGameState.coins(player) >= 10) {
+      return Vector(Coup(player, nextPlayer))
+    }
+
     val builder = IndexedSeq.newBuilder[Action]
     builder += (
       Income(player),
@@ -59,10 +64,61 @@ object Rules {
       partialGameState: CoupPartialGameState): IndexedSeq[Action] = ???
 
   private def legalDiscardInfluences(
-      partialGameState: CoupPartialGameState): IndexedSeq[Action] = ???
+      partialGameState: CoupPartialGameState): IndexedSeq[Action] = {
+    val player = partialGameState.me
+    partialGameState.myInfluences.map(LoseInfluence(player, _))
+  }
 
   private def legalExamineInfluences(
-      partialGameState: CoupPartialGameState): IndexedSeq[Action] = ???
+      partialGameState: CoupPartialGameState): IndexedSeq[Action] = {
+    require(partialGameState.currentPlay.last.isInstanceOf[Challenge])
+
+    val player = partialGameState.me
+
+    val playWithoutChallenge = partialGameState.currentPlay.dropRight(1).toVector
+    val correctInfluences = sufficientInfluence(playWithoutChallenge)
+
+    partialGameState.myInfluences.map(char => {
+      if (correctInfluences.contains(char))
+        ProveInfluence(player, char)
+      else
+        LoseInfluence(player, char)
+    })
+  }
+
+  /*
+   * Which characters have sufficient influence to perform the last action
+   * in play.
+   */
+  private def sufficientInfluence(
+      play: IndexedSeq[Action]): IndexedSeq[Character.EnumVal] = {
+    require(play.size <= 2)
+
+    if (play.size == 2)
+      sufficientInfluenceToBlock(play.head)
+    else
+      Vector(sufficientInfluenceForPrimaryAction(play.head))
+  }
+
+  private def sufficientInfluenceForPrimaryAction(action: Action): Character.EnumVal = {
+    action match {
+      case _: Tax => Character.Duke
+      case _: Exchange => Character.Ambassador
+      case _: Steal => Character.Captain
+      case _: Assassinate => Character.Assassin
+      case _ => ??? // TODO: some requirement that we can't be here
+    }
+  }
+
+  private def sufficientInfluenceToBlock(
+      action: Action): IndexedSeq[Character.EnumVal] = {
+    action match {
+      case _: ForeignAid => Vector(Character.Duke)
+      case _: Steal => Vector(Character.Ambassador, Character.Captain)
+      case _: Assassinate => Vector(Character.Contessa)
+      case _ => ??? // TODO: some requirement that we can't be here
+    }
+  }
 
   def isActionLegal(gameState: CoupGameState, action: Action): Boolean = {
     action match {
@@ -171,8 +227,6 @@ object Rules {
   private def canChallengeAction(
       challenge: Challenge,
       lastActionOpt: Option[Action]): Boolean = {
-    val player = challenge.player
-    val targetPlayer = challenge.targetPlayer
     lastActionOpt match {
       case None => false
       case Some(lastAction) => canBeChallenged(lastAction)
@@ -222,12 +276,16 @@ object Rules {
     }
   }
 
+  // TODO: maybe break this function up?
   def isExamineInfluenceOK(
       gameState: CoupGameState,
       player: PlayerT,
       revealedCharacter: Character.EnumVal): Boolean = {
     gameState.pendingStages.head match {
       case ExamineInfluence(contestedPlayer) =>
+        player == contestedPlayer &&
+          gameState.influences(player).contains(revealedCharacter)
+      case DiscardInfluence(contestedPlayer) =>
         player == contestedPlayer &&
           gameState.influences(player).contains(revealedCharacter)
       case _ => false

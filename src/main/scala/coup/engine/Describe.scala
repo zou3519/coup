@@ -4,8 +4,17 @@ import coup.core.{Action, CoupGameState, CoupPartialGameState}
 
 object Describe {
 
-  def printGameState(gameState: CoupGameState): Unit = {
-
+  def gameState(gameState: CoupGameState): String = {
+    "\u001b[2J\n" +
+    "------------------ GameState dump ------------------\n" +
+    "Deck: " + gameState.courtDeck + "\n" +
+    "Discard: " + gameState.discardPile + "\n" +
+    "Coins: " + gameState.coins + "\n" +
+     "Influences: " + gameState.influences + "\n" +
+    "Current Play: " + gameState.currentPlay + "\n" +
+    "Pending: " + gameState.pendingStages + "\n" +
+    "Ambassador deck: " + gameState.ambassadorDeck + "\n" +
+    "-----------------------------------------------------------"
   }
 
   def partialGameState(partialGameState: CoupPartialGameState): String = {
