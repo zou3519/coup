@@ -50,7 +50,7 @@ object Rules {
       builder += Challenge(player, nextPlayer)
 
     if (canBeReactedTo(lastAction))
-      builder += NoReaction(player)
+      builder += DoNothing(player)
 
     builder.result
   }
@@ -81,7 +81,7 @@ object Rules {
       /* Responses */
       case block: Block => isBlockOK(gameState, block)
       case challenge: Challenge => isChallengeOK(gameState, challenge)
-      case noReaction: NoReaction => isNoReactionOK(gameState, noReaction)
+      case noReaction: DoNothing => isNoReactionOK(gameState, noReaction)
 
       /* Resolutions */
       case resolveExchange: ResolveExchange =>
@@ -190,7 +190,7 @@ object Rules {
     }
   }
 
-  def isNoReactionOK(gameState: CoupGameState, noReaction: NoReaction): Boolean = {
+  def isNoReactionOK(gameState: CoupGameState, noReaction: DoNothing): Boolean = {
    gameState.pendingStages.head match {
       case Reaction(actionPlayer) =>
         noReaction.player == actionPlayer &&
@@ -198,7 +198,7 @@ object Rules {
       case _ => false
     }
   }
-  private def canNoReaction(noReaction: NoReaction, lastActionOpt: Option[Action]): Boolean = {
+  private def canNoReaction(noReaction: DoNothing, lastActionOpt: Option[Action]): Boolean = {
     lastActionOpt match {
       case None => false
       case Some(lastAction) =>

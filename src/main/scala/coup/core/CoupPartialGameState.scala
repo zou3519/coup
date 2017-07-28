@@ -1,7 +1,6 @@
 package coup.core
 
 import scala.collection.immutable.Seq
-import scala.collection.immutable.Queue
 
 class CoupPartialGameState(
     val courtDeckSize: Int,

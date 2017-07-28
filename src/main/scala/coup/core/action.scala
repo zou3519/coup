@@ -19,10 +19,8 @@ case class Assassinate(player: PlayerT, targetPlayer: PlayerT) extends Action
 case class Block(player: PlayerT, targetPlayer: PlayerT) extends Action
 case class Challenge(player: PlayerT, targetPlayer: PlayerT) extends Action
 
-/* Player confirms that they do not want to react to reactable action */
-case class NoReaction(player: PlayerT) extends Action
-
-/* Resolutions */
+/* Resolutions. After these actions, the original action is resolved or blocked. */
+case class DoNothing(player: PlayerT) extends Action
 case class ResolveExchange(player: PlayerT, returnedCharacters: Seq[Character.EnumVal]) extends Action
 case class LoseInfluence(player: PlayerT, lostCharacter: Character.EnumVal) extends Action
 case class ProveInfluence(player: PlayerT, provenCharacter: Character.EnumVal) extends Action
