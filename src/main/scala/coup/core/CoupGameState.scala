@@ -1,7 +1,8 @@
 package coup.core
 
-import scala.collection.immutable.Queue
-import scala.collection.immutable.Seq
+import scala.collection.mutable
+import scala.collection.mutable.{ArrayBuffer, Queue}
+//import scala.collection.immutable.Seq
 import scala.util.Random
 
 /**
@@ -13,18 +14,18 @@ object CoupGameState {
 
     // Generate court deck and influences
     val allCards = Character.characters.flatMap(x => Seq(x, x, x))
-    val shuffledCards = Random.shuffle(allCards)
+    val shuffledCards = Random.shuffle(allCards).to[ArrayBuffer]
 
     val (dealtCards, courtDeck) = shuffledCards.splitAt(numPlayers * 2)
-    val influences = dealtCards.grouped(2).toIndexedSeq
+    val influences = dealtCards.grouped(2).to[ArrayBuffer]
 
     new CoupGameState(
       courtDeck,              // deck
-      PlayerPiles.fill(numPlayers)(Seq()), // discardPile
-      PlayerPiles.fill(numPlayers)(2),     // coins
+      mu.PlayerPiles.fill(numPlayers)(ArrayBuffer()), // discardPile
+      mu.PlayerPiles.fill(numPlayers)(2),     // coins
       influences,             // influences
-      Seq(),                  // currentPlay
-      Queue(PrimaryAction(0)),// pendingStages
+      ArrayBuffer(),                  // currentPlay
+      mutable.Queue(PrimaryAction(0)),// pendingStages
       None                    // ambassadorDeck
     )
   }
@@ -33,73 +34,59 @@ object CoupGameState {
 /**
   * Encapsulates the state of the game at any time.
   *
-  * @param currentPlay Sequence of Actions that have just happened.
-  * @param pendingStages What the game state is currently waiting on.
+  * @param _currentPlay Sequence of Actions that have just happened.
+  * @param _pendingStages What the game state is currently waiting on.
   *                     An action, resolving exchange, or discard
   */
 class CoupGameState(
-    val courtDeck: Cards,
-    val discardPile: PlayerPiles[Cards],
-    val coins: PlayerPiles[Int],
-    val influences: PlayerPiles[Cards],
-    val currentPlay: Seq[Action],
-    val pendingStages: Queue[PendingStage],
-    val ambassadorDeck: Option[Cards]) {
+    private val _courtDeck: mu.Cards,
+    private val _discardPile: mu.PlayerPiles[mu.Cards],
+    private val _coins: mu.PlayerPiles[Int],
+    private val _influences: mu.PlayerPiles[mu.Cards],
+    private val _currentPlay: ArrayBuffer[Action],
+    private val _pendingStages: mutable.Queue[PendingStage],
+    private var _ambassadorDeck: Option[mu.Cards]) {
 
-  /* Shortcut to copying this object */
-  def copy(
-            courtDeck: Cards = courtDeck,
-            discardPile: PlayerPiles[Cards] = discardPile,
-            coins: PlayerPiles[Int] = coins,
-            influences: PlayerPiles[Cards] = influences,
-            currentPlay: Seq[Action] = currentPlay,
-            pendingStages: Queue[PendingStage] = pendingStages,
-            ambassadorDeck: Option[Cards] = ambassadorDeck): CoupGameState = {
-    new CoupGameState(
-      courtDeck,
-      discardPile,
-      coins,
-      influences,
-      currentPlay,
-      pendingStages,
-      ambassadorDeck
-    )
-  }
+  /* (slow) Accessors */
+  def coins: PlayerPiles[Int] = _coins.toVector
+  def influences: PlayerPiles[Cards] = _influences.map(_.toVector).toVector
+  def currentPlay: Vector[Action] = _currentPlay.toVector
+  def pendingStages: Vector[PendingStage] = _pendingStages.toVector
+  def ambassadorDeck: Option[Cards] = _ambassadorDeck.map(_.toVector)
 
   /* From the view of a player */
   def toPartialGameState(player: PlayerT): CoupPartialGameState = {
 
     // Hide ambassador deck if necessary
-    val showAmbassadorDeck = pendingStages.front match {
+    val showAmbassadorDeck = _pendingStages.front match {
       case ChooseExchange(requestedPlayer) =>
-        if (requestedPlayer == player) ambassadorDeck else None
+        if (requestedPlayer == player) _ambassadorDeck else None
       case _ => None
     }
 
     new CoupPartialGameState(
-      courtDeck.length,
-      discardPile,
-      coins,
-      influences(player),
-      influences(nextPlayer(player)).size, // assumes 2p
-      currentPlay,
-      pendingStages,
-      showAmbassadorDeck,
+      _courtDeck.length,
+      _discardPile.map(_.toVector).toVector,
+      _coins.toVector,
+      _influences(player).toVector,
+      _influences(nextPlayer(player)).size, // assumes 2p
+      _currentPlay.toVector,
+      _pendingStages.toVector,
+      showAmbassadorDeck.map(_.toVector),
       player
     )
   }
 
   /* Apply the action */
-  def nextState(action: Action): CoupGameState = {
-    // TODO: I broke the below... create a mixin trait that combines partial and full game states
-    // require(Rules.isActionLegal(this, action))
+  def applyAction(action: Action): Unit = {
+    require(Rules.isActionLegal(this, action))
 
     action match {
       case income: Income => applyIncome(income)
       case foreignAid: ForeignAid => applyForeignAid(foreignAid)
       case coup: Coup => applyCoup(coup)
       case tax: Tax => applyTax(tax)
-      case exchange: ChooseExchange => applyExchange(exchange)
+      case exchange: Exchange => applyExchange(exchange)
       case steal: Steal => applySteal(steal)
       case assassinate: Assassinate => applyAssassinate(assassinate)
       case block: Block => applyBlock(block)
@@ -115,55 +102,40 @@ class CoupGameState(
     (player + 1) % 2
   }
 
-  private def applyIncome(income: Income): CoupGameState = {
+  private def applyIncome(income: Income): Unit = {
     val player = income.player
-    val newIncome = coins(player) + 1
-    val newPendingStages = pendingStages.drop(1) :+ PrimaryAction(nextPlayer(player))
-
-    copy(
-      coins = coins.updated(player, newIncome),
-      currentPlay = currentPlay,
-      pendingStages = newPendingStages
-    )
+    _coins(player) += 1
+    _pendingStages.dequeue()
+    _pendingStages.enqueue(PrimaryAction(nextPlayer(player)))
   }
 
-  private def applyForeignAid(foreignAid: ForeignAid): CoupGameState = ???
+  private def applyForeignAid(foreignAid: ForeignAid): Unit = ???
 
-  private def applyCoup(coup: Coup): CoupGameState = {
+  private def applyCoup(coup: Coup): Unit = {
     val player = coup.player
     val targetPlayer = coup.targetPlayer
-    val newPendingStages =
-      pendingStages.drop(1) :+
-        DiscardInfluence(targetPlayer) :+
-        PrimaryAction(nextPlayer(player))
-    val newIncome = coins(player) - 7
-
-    copy(
-      coins = coins.updated(player, newIncome),
-      currentPlay = currentPlay :+ coup,
-      pendingStages = newPendingStages
-    )
+    _coins(player) -= 7
+    _pendingStages.dequeue()
+    _pendingStages.enqueue(
+      DiscardInfluence(targetPlayer),
+      PrimaryAction(nextPlayer(player)))
   }
 
-  private def applyTax(tax: Tax): CoupGameState = ???
-  private def applyExchange(exchange: ChooseExchange): CoupGameState = ???
-  private def applySteal(steal: Steal): CoupGameState = ???
-  private def applyAssassinate(assassinate: Assassinate): CoupGameState = ???
-  private def applyBlock(block: Block): CoupGameState = ???
-  private def applyChallenge(challenge: Challenge): CoupGameState = ???
-  private def applyNoReaction(noReaction: NoReaction): CoupGameState = ???
-  private def applyResolveExchange(resolveExchange: ResolveExchange): CoupGameState = ???
+  private def applyTax(tax: Tax): Unit = ???
+  private def applyExchange(exchange: Exchange): Unit = ???
+  private def applySteal(steal: Steal): Unit = ???
+  private def applyAssassinate(assassinate: Assassinate): Unit = ???
+  private def applyBlock(block: Block): Unit = ???
+  private def applyChallenge(challenge: Challenge): Unit = ???
+  private def applyNoReaction(noReaction: NoReaction): Unit = ???
+  private def applyResolveExchange(resolveExchange: ResolveExchange): Unit = ???
 
-  private def applyLoseInfluence(loseInfluence: LoseInfluence): CoupGameState = {
+  private def applyLoseInfluence(loseInfluence: LoseInfluence): Unit = {
     val player = loseInfluence.player
-    val newInfluences = influences(player).diff(Seq(loseInfluence.lostCharacter))
-
-    copy(
-      influences = influences.updated(player, newInfluences),
-      currentPlay = Seq(),
-      pendingStages = pendingStages.drop(1)
-    )
+    _influences(player) -= loseInfluence.lostCharacter
+    _currentPlay.clear()
+    _pendingStages.dequeue()
   }
 
-  private def applyProveInfluence(proveInfluence: ProveInfluence): CoupGameState = ???
+  private def applyProveInfluence(proveInfluence: ProveInfluence): Unit = ???
 }

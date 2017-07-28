@@ -10,7 +10,7 @@ class CoupPartialGameState(
     val myInfluences: Cards,
     val opponentInfluencesSize: Int,
     val currentPlay: Seq[Action],
-    val pendingStages: Queue[PendingStage],
+    val pendingStages: Vector[PendingStage],
     val myAmbassadorDeck: Option[Cards],
     val me: PlayerT) {
 

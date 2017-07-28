@@ -23,6 +23,6 @@ case class Challenge(player: PlayerT, targetPlayer: PlayerT) extends Action
 case class NoReaction(player: PlayerT) extends Action
 
 /* Resolutions */
-case class ResolveExchange(player: PlayerT, returnedCharacters: Seq[Character]) extends Action
-case class LoseInfluence(player: PlayerT, lostCharacter: Character) extends Action
-case class ProveInfluence(player: PlayerT, provenCharacter: Character) extends Action
+case class ResolveExchange(player: PlayerT, returnedCharacters: Seq[Character.EnumVal]) extends Action
+case class LoseInfluence(player: PlayerT, lostCharacter: Character.EnumVal) extends Action
+case class ProveInfluence(player: PlayerT, provenCharacter: Character.EnumVal) extends Action

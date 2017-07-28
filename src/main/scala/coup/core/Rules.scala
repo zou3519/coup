@@ -3,7 +3,7 @@ package coup.core
 object Rules {
 
   def legalActions(partialGameState: CoupPartialGameState): IndexedSeq[Action] = {
-    partialGameState.pendingStages.front match {
+    partialGameState.pendingStages.head match {
       case _: PrimaryAction => legalPrimaryActions(partialGameState)
       case _: Reaction => legalReactions(partialGameState)
       case _: ChooseExchange => legalChooseExchanges(partialGameState)
@@ -14,7 +14,7 @@ object Rules {
 
   private def legalPrimaryActions(
       partialGameState: CoupPartialGameState): IndexedSeq[Action] = {
-    val player = partialGameState.pendingStages.front.player
+    val player = partialGameState.pendingStages.head.player
     val nextPlayer = (player + 1) % 2
 
     val builder = IndexedSeq.newBuilder[Action]
@@ -37,7 +37,7 @@ object Rules {
 
   private def legalReactions(
       partialGameState: CoupPartialGameState): IndexedSeq[Action] = {
-    val player = partialGameState.pendingStages.front.player
+    val player = partialGameState.pendingStages.head.player
     val nextPlayer = (player + 1) % 2
 
     val builder = IndexedSeq.newBuilder[Action]
@@ -73,7 +73,7 @@ object Rules {
       case coup: Coup => isCoupOK(gameState, coup)
 
       case tax: Tax => isNonCoupPrimaryActionOK(gameState, tax)
-      case exchange: ChooseExchange => isNonCoupPrimaryActionOK(gameState, exchange)
+      case exchange: Exchange => isNonCoupPrimaryActionOK(gameState, exchange)
 
       case assassinate: Assassinate => isAssassinateOK(gameState, assassinate)
       case steal: Steal => isStealOK(gameState, steal)
@@ -95,7 +95,7 @@ object Rules {
 
   def isNonCoupPrimaryActionOK(gameState: CoupGameState, action: Action): Boolean = {
     val player = action.player
-    gameState.pendingStages.front match {
+    gameState.pendingStages.head match {
       case PrimaryAction(actionPlayer) =>
         player == actionPlayer && gameState.coins(player) < 10
       case _ => false
@@ -105,7 +105,7 @@ object Rules {
   def isCoupOK(gameState: CoupGameState, coup: Coup): Boolean = {
     val player = coup.player
     val targetPlayer = coup.targetPlayer
-    gameState.pendingStages.front match {
+    gameState.pendingStages.head match {
       case PrimaryAction(actionPlayer) =>
         player == actionPlayer &&
           gameState.coins(player) >= 7 &&
@@ -131,7 +131,7 @@ object Rules {
   }
 
   def isBlockOK(gameState: CoupGameState, block: Block): Boolean = {
-    gameState.pendingStages.front match {
+    gameState.pendingStages.head match {
       case Reaction(actionPlayer) =>
         block.player == actionPlayer &&
           canBlockAction(block, gameState.currentPlay.lastOption)
@@ -141,7 +141,7 @@ object Rules {
 
   def isChallengeOK(gameState: CoupGameState, challenge: Challenge): Boolean = {
     val player = challenge.player
-    gameState.pendingStages.front match {
+    gameState.pendingStages.head match {
       case Reaction(actionPlayer) =>
         player == actionPlayer &&
           canChallengeAction(challenge, gameState.currentPlay.lastOption)
@@ -191,7 +191,7 @@ object Rules {
   }
 
   def isNoReactionOK(gameState: CoupGameState, noReaction: NoReaction): Boolean = {
-   gameState.pendingStages.front match {
+   gameState.pendingStages.head match {
       case Reaction(actionPlayer) =>
         noReaction.player == actionPlayer &&
           canNoReaction(noReaction, gameState.currentPlay.lastOption)
@@ -214,7 +214,7 @@ object Rules {
       gameState: CoupGameState,
       resolveExchange: ResolveExchange): Boolean =  {
     val player = resolveExchange.player
-    gameState.pendingStages.front match {
+    gameState.pendingStages.head match {
       case ChooseExchange(exchgPlayer) =>
         exchgPlayer == player
         // TODO: validate exchanged cards
@@ -225,8 +225,8 @@ object Rules {
   def isExamineInfluenceOK(
       gameState: CoupGameState,
       player: PlayerT,
-      revealedCharacter: Character): Boolean = {
-    gameState.pendingStages.front match {
+      revealedCharacter: Character.EnumVal): Boolean = {
+    gameState.pendingStages.head match {
       case ExamineInfluence(contestedPlayer) =>
         player == contestedPlayer &&
           gameState.influences(player).contains(revealedCharacter)
