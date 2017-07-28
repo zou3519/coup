@@ -1,5 +1,6 @@
 package coup.core
 
+import coup.core.Character.{Ambassador, Assassin, Contessa, Duke}
 import org.scalatest.{GivenWhenThen, Matchers}
 import org.scalatest.Matchers
 import org.scalatest.Matchers._
@@ -179,14 +180,74 @@ class CoupGameStateTest extends org.scalatest.FeatureSpec
       assertEquality(newGameState, oldGameState)
     }
 
-    scenario("foreign aid => block => challenge => prove influence") {
-      // TODO need a way to specify a game state
+    scenario("foreign aid => block => challenge => prove influence => discard influence") {
+      Given("a game state")
+      val player = 0
+      val otherPlayer = nextPlayer(player)
+      val newGameState = CoupGameState.initWith(
+        Vector(Contessa, Contessa),
+        Vector(Duke, Assassin))
+      val oldGameState = newGameState.copy
+
+      When("foreign aid => block => challenge => prove influence => discard influence")
+      newGameState.applyAction(ForeignAid(player))
+      newGameState.applyAction(Block(otherPlayer, player))
+      newGameState.applyAction(Challenge(player, otherPlayer))
+      newGameState.applyAction(ProveInfluence(otherPlayer, Duke))
+      val lostInfluence = Contessa
+      newGameState.applyAction(LoseInfluence(player, lostInfluence))
+
+      Then("coins is unchanged")
+      assert(newGameState.coins == oldGameState.coins)
+
+      And("only the challenging player loses an influence")
+      newGameState.influences(player) :+ lostInfluence should contain theSameElementsAs
+        oldGameState.influences(player)
+      newGameState.discardPile(player) should contain theSameElementsAs
+        oldGameState.discardPile(player) :+ lostInfluence
+      newGameState.influences(otherPlayer) should contain theSameElementsAs
+        oldGameState.influences(otherPlayer)
+      newGameState.discardPile(otherPlayer) should contain theSameElementsAs
+        oldGameState.discardPile(otherPlayer)
+
+      And("it is the next player's turn")
+      assert(newGameState.pendingStages.head.player != player)
+      assert(newGameState.currentPlay.isEmpty)
     }
 
     scenario("foreign aid => block => challenge => lose influence") {
-      // TODO
+      Given("a game state")
+      val player = 0
+      val otherPlayer = nextPlayer(player)
+      val newGameState = CoupGameState.initWith(
+        Vector(Contessa, Contessa),
+        Vector(Ambassador, Assassin))
+      val oldGameState = newGameState.copy
+
+      When("foreign aid => block => challenge => lose influence")
+      newGameState.applyAction(ForeignAid(player))
+      newGameState.applyAction(Block(otherPlayer, player))
+      newGameState.applyAction(Challenge(player, otherPlayer))
+      val lostInfluence = Assassin
+      newGameState.applyAction(LoseInfluence(otherPlayer, lostInfluence))
+
+      Then("only the player gains 2 coins")
+      assert(newGameState.coins(player) == oldGameState.coins(player) + 2)
+      assert(newGameState.coins(otherPlayer) == oldGameState.coins(otherPlayer))
+
+      And("only the challenging player loses an influence")
+      newGameState.influences(otherPlayer) :+ lostInfluence should contain theSameElementsAs
+        oldGameState.influences(otherPlayer)
+      newGameState.discardPile(otherPlayer) should contain theSameElementsAs
+        oldGameState.discardPile(otherPlayer) :+ lostInfluence
+      newGameState.influences(player) should contain theSameElementsAs
+        oldGameState.influences(player)
+      newGameState.discardPile(player) should contain theSameElementsAs
+        oldGameState.discardPile(player)
+
+      And("it is the next player's turn")
+      assert(newGameState.pendingStages.head.player != player)
+      assert(newGameState.currentPlay.isEmpty)
     }
   }
-
-
 }

@@ -28,6 +28,24 @@ object CoupGameState {
       None                    // ambassadorDeck
     )
   }
+  def initWith(playerCards: Cards, otherPlayerCards: Cards): CoupGameState = {
+    val numPlayers = 2
+
+    val allCards = Character.characters.flatMap(x => Seq(x, x, x)).to[ArrayBuffer]
+    allCards --= playerCards
+    allCards --= otherPlayerCards
+    val influences = ArrayBuffer(playerCards, otherPlayerCards).map(_.to[ArrayBuffer])
+
+    new CoupGameState(
+      allCards,              // deck
+      mu.PlayerPiles.fill(numPlayers)(ArrayBuffer()), // discardPile
+      mu.PlayerPiles.fill(numPlayers)(2),     // coins
+      influences,             // influences
+      ArrayBuffer(),                  // currentPlay
+      mutable.Queue(PrimaryAction(0)),// pendingStages
+      None                    // ambassadorDeck
+    )
+  }
 }
 
 /**
@@ -209,7 +227,7 @@ class CoupGameState(
         prevAction.isInstanceOf[ProveInfluence]) {
 
       // figure out which actions go through
-      val actionOpt = actionToResolve(_currentPlay.clone(), topActionSucceeds = true)
+      val actionOpt = actionToResolve(_currentPlay.dropRight(1), topActionSucceeds = true)
       actionOpt match {
         case Some(action) => resolveAction(action)
         case None => nextTurn()
@@ -230,8 +248,6 @@ class CoupGameState(
 
   private def applyProveInfluence(proveInfluence: ProveInfluence): Unit = {
     // TODO: shuffle the revealed influence back in and draw new one
-
-    _currentPlay.append(proveInfluence)
 
     // Next player should lose influence
     val otherPlayer = nextPlayer(proveInfluence.player)
