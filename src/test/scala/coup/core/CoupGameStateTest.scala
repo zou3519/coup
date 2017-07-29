@@ -1,9 +1,7 @@
 package coup.core
 
-import coup.core.Character.{Ambassador, Assassin, Contessa, Duke}
+import coup.core.Character._
 import org.scalatest.{GivenWhenThen, Matchers}
-import org.scalatest.Matchers
-import org.scalatest.Matchers._
 
 class CoupGameStateTest extends org.scalatest.FeatureSpec
   with GivenWhenThen
@@ -42,7 +40,7 @@ class CoupGameStateTest extends org.scalatest.FeatureSpec
     scenario("first player incomes") {
       Given("a game state")
       val player = 0
-      val newGameState = CoupGameState.init
+      val newGameState = CoupGameState.init()
       val oldGameState = newGameState.copy
 
       When("income happens")
@@ -65,7 +63,7 @@ class CoupGameStateTest extends org.scalatest.FeatureSpec
       Given("a game state")
       val player = 0
       val otherPlayer = nextPlayer(player)
-      val newGameState = CoupGameState.init
+      val newGameState = CoupGameState.init()
       val oldGameState = newGameState.copy
 
       When("both players income")
@@ -90,11 +88,7 @@ class CoupGameStateTest extends org.scalatest.FeatureSpec
       Given("a game state where players have 7 coins each")
       val player = 0
       val otherPlayer = nextPlayer(player)
-      val newGameState = CoupGameState.init
-      for (_ <- 1 to 5) {
-        newGameState.applyAction(Income(player))
-        newGameState.applyAction(Income(otherPlayer))
-      }
+      val newGameState = CoupGameState.init(coins = Vector(7, 7))
       val oldGameState = newGameState.copy
 
       When("A coup happens [coup => lose influence]")
@@ -117,16 +111,11 @@ class CoupGameStateTest extends org.scalatest.FeatureSpec
     }
 
     scenario("must coup") {
-      Given("a game state")
+      Given("a game state where players have 10 coins each")
       val player = 0
-      val otherPlayer = nextPlayer(player)
-      val newGameState = CoupGameState.init
+      val newGameState = CoupGameState.init(coins = Vector(10, 10))
 
-      When("Players have 10 coins each")
-      for (_ <- 1 to 8) {
-        newGameState.applyAction(Income(player))
-        newGameState.applyAction(Income(otherPlayer))
-      }
+      When("the player moves")
 
       Then("the player must coup")
       val legalActions = Rules.legalActions(newGameState.toPartialGameState(player))
@@ -140,7 +129,7 @@ class CoupGameStateTest extends org.scalatest.FeatureSpec
       Given("a game state")
       val player = 0
       val otherPlayer = nextPlayer(player)
-      val newGameState = CoupGameState.init
+      val newGameState = CoupGameState.init()
       val oldGameState = newGameState.copy
 
       When("foreign aid => do nothing")
@@ -164,7 +153,7 @@ class CoupGameStateTest extends org.scalatest.FeatureSpec
       Given("a game state")
       val player = 0
       val otherPlayer = nextPlayer(player)
-      val newGameState = CoupGameState.init
+      val newGameState = CoupGameState.init()
       val oldGameState = newGameState.copy
 
       When("foreign aid => block => do nothing")
@@ -248,6 +237,244 @@ class CoupGameStateTest extends org.scalatest.FeatureSpec
       And("it is the next player's turn")
       assert(newGameState.pendingStages.head.player != player)
       assert(newGameState.currentPlay.isEmpty)
+    }
+  }
+
+  feature("steal") {
+    scenario("steal => do nothing") {
+      Given("a game state")
+      val player = 0
+      val otherPlayer = nextPlayer(player)
+      val newGameState = CoupGameState.init(coins = Vector(2, 2))
+      val oldGameState = newGameState.copy
+
+      When("steal => do nothing")
+      newGameState.applyAction(Steal(player, otherPlayer))
+      newGameState.applyAction(DoNothing(otherPlayer))
+
+      Then("the player stole 2 coins")
+      assert(newGameState.coins(player) == oldGameState.coins(player) + 2)
+      assert(newGameState.coins(otherPlayer) == oldGameState.coins(otherPlayer) - 2)
+
+      And("it is the next player's turn")
+      assert(newGameState.pendingStages.head.player != player)
+      assert(newGameState.currentPlay.isEmpty)
+
+      And("everything else is unchanged")
+      assertEquality(
+        newGameState,
+        oldGameState,
+        testInfluences = false,
+        testDiscardPile = false,
+        testCoins = false)
+    }
+
+    scenario("steal when other player has 1 coin") {
+      Given("a game state where other player has 1 coin")
+      val player = 0
+      val otherPlayer = nextPlayer(player)
+      val newGameState = CoupGameState.init(coins = Vector(2, 1))
+      val oldGameState = newGameState.copy
+
+
+      When("steal => do nothing")
+      newGameState.applyAction(Steal(player, otherPlayer))
+      newGameState.applyAction(DoNothing(otherPlayer))
+
+      Then("the player stole 1 coin")
+      assert(newGameState.coins(player) == oldGameState.coins(player) + 1)
+      assert(newGameState.coins(otherPlayer) == oldGameState.coins(otherPlayer) - 1)
+
+      And("it is the next player's turn")
+      assert(newGameState.pendingStages.head.player != player)
+      assert(newGameState.currentPlay.isEmpty)
+
+      And("everything else is unchanged")
+      assertEquality(
+        newGameState,
+        oldGameState,
+        testDiscardPile = false,
+        testInfluences = false,
+        testCoins = false)
+    }
+
+
+    scenario("steal => challenge => lose influence") {
+      Given("a game state")
+      val player = 0
+      val otherPlayer = nextPlayer(player)
+      val newGameState = CoupGameState.init(coins = Vector(2, 2))
+      val oldGameState = newGameState.copy
+
+      When("steal => challenge => lose influence")
+      newGameState.applyAction(Steal(player, otherPlayer))
+      newGameState.applyAction(Challenge(otherPlayer, player))
+      val lostInfluence = newGameState.influences(player)(1)
+      newGameState.applyAction(LoseInfluence(player, lostInfluence))
+
+      Then("it is the next player's turn")
+      assert(newGameState.pendingStages.head.player != player)
+      assert(newGameState.currentPlay.isEmpty)
+
+      And("everything else is unchanged")
+      assertEquality(
+        newGameState,
+        oldGameState,
+        testDiscardPile = false,
+        testInfluences = false)
+    }
+
+    scenario("steal => challenge => prove influence => lose influence") {
+      Given("a game state")
+      val player = 0
+      val otherPlayer = nextPlayer(player)
+      val newGameState = CoupGameState.initWith(
+        Vector(Captain, Ambassador),
+        Vector(Assassin, Duke),
+        coins = Vector(2, 2))
+      val oldGameState = newGameState.copy
+
+      When("steal => challenge => prove influence => lose influence")
+      newGameState.applyAction(Steal(player, otherPlayer))
+      newGameState.applyAction(Challenge(otherPlayer, player))
+      newGameState.applyAction(ProveInfluence(player, Captain))
+      val lostInfluence = newGameState.influences(otherPlayer)(1)
+      newGameState.applyAction(LoseInfluence(otherPlayer, lostInfluence))
+
+      Then("the player stole two coins")
+      assert(newGameState.coins(player) == oldGameState.coins(player) + 2)
+      assert(newGameState.coins(otherPlayer) == oldGameState.coins(otherPlayer) - 2)
+
+      And("it is the next player's turn")
+      assert(newGameState.pendingStages.head.player != player)
+      assert(newGameState.currentPlay.isEmpty)
+
+      And("everything else is unchanged")
+      assertEquality(
+        newGameState,
+        oldGameState,
+        testDiscardPile = false,
+        testInfluences = false,
+        testCoins = false)
+    }
+
+    scenario("steal => block => do nothing") {
+      Given("a game state")
+      val player = 0
+      val otherPlayer = nextPlayer(player)
+      val newGameState = CoupGameState.init(coins = Vector(2, 2))
+      val oldGameState = newGameState.copy
+
+      When("steal => block => do nothing")
+      newGameState.applyAction(Steal(player, otherPlayer))
+      newGameState.applyAction(Block(otherPlayer, player))
+      newGameState.applyAction(DoNothing(player))
+
+      Then("it is the next player's turn")
+      assert(newGameState.pendingStages.head.player != player)
+      assert(newGameState.currentPlay.isEmpty)
+
+      And("everything else is unchanged")
+      assertEquality(
+        newGameState,
+        oldGameState,
+        testDiscardPile = false,
+        testInfluences = false)
+    }
+
+    scenario("steal => block => challenge " +
+        "prove influence (captain) => lose influence") {
+      Given("a game state")
+      val player = 0
+      val otherPlayer = nextPlayer(player)
+      val newGameState = CoupGameState.initWith(
+        Vector(Duke, Assassin),
+        Vector(Captain, Captain),
+        coins = Vector(2, 2))
+      val oldGameState = newGameState.copy
+
+      When("steal => block => challenge " +
+        "prove influence (captain) => lose influence")
+      newGameState.applyAction(Steal(player, otherPlayer))
+      newGameState.applyAction(Block(otherPlayer, player))
+      newGameState.applyAction(Challenge(player, otherPlayer))
+      newGameState.applyAction(ProveInfluence(otherPlayer, Captain))
+      newGameState.applyAction(LoseInfluence(player, Duke))
+
+      Then("it is the next player's turn")
+      assert(newGameState.pendingStages.head.player != player)
+      assert(newGameState.currentPlay.isEmpty)
+
+      And("everything else is unchanged")
+      assertEquality(
+        newGameState,
+        oldGameState,
+        testDiscardPile = false,
+        testInfluences = false)
+    }
+
+    scenario("steal => block => challenge " +
+        "prove influence (ambassador) => lose influence") {
+      val player = 0
+      val otherPlayer = nextPlayer(player)
+      val newGameState = CoupGameState.initWith(
+        Vector(Duke, Assassin),
+        Vector(Ambassador, Duke),
+        coins = Vector(2, 2))
+      val oldGameState = newGameState.copy
+
+      When("steal => block => challenge " +
+        "prove influence (captain) => lose influence")
+      newGameState.applyAction(Steal(player, otherPlayer))
+      newGameState.applyAction(Block(otherPlayer, player))
+      newGameState.applyAction(Challenge(player, otherPlayer))
+      newGameState.applyAction(ProveInfluence(otherPlayer, Ambassador))
+      newGameState.applyAction(LoseInfluence(player, Duke))
+
+      Then("it is the next player's turn")
+      assert(newGameState.pendingStages.head.player != player)
+      assert(newGameState.currentPlay.isEmpty)
+
+      And("everything else is unchanged")
+      assertEquality(
+        newGameState,
+        oldGameState,
+        testDiscardPile = false,
+        testInfluences = false)
+    }
+
+    scenario("steal => block => challenge => lose influence") {
+      Given("a game state")
+      val player = 0
+      val otherPlayer = nextPlayer(player)
+      val newGameState = CoupGameState.initWith(
+        Vector(Captain, Ambassador),
+        Vector(Assassin, Duke),
+        coins = Vector(2, 2))
+      val oldGameState = newGameState.copy
+
+      When("steal => block => challenge => lose influence")
+      newGameState.applyAction(Steal(player, otherPlayer))
+      newGameState.applyAction(Block(otherPlayer, player))
+      newGameState.applyAction(Challenge(player, otherPlayer))
+      val lostInfluence = newGameState.influences(otherPlayer)(1)
+      newGameState.applyAction(LoseInfluence(otherPlayer, lostInfluence))
+
+      Then("the player stole 2 coins")
+      assert(newGameState.coins(player) == oldGameState.coins(player) + 2)
+      assert(newGameState.coins(otherPlayer) == oldGameState.coins(otherPlayer) - 2)
+
+      And("it is the next player's turn")
+      assert(newGameState.pendingStages.head.player != player)
+      assert(newGameState.currentPlay.isEmpty)
+
+      And("everything else is unchanged")
+      assertEquality(
+        newGameState,
+        oldGameState,
+        testDiscardPile = false,
+        testInfluences = false,
+        testCoins = false)
     }
   }
 }

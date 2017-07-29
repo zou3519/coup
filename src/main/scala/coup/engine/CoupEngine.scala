@@ -8,7 +8,7 @@ import scala.concurrent.duration._
 object CoupEngine {
 
   def gameLoop(): Unit = {
-    val gameState = CoupGameState.init
+    val gameState = CoupGameState.init()
     val players = IndexedSeq(new Human, new Human)
 
     while (gameState.pendingStages.nonEmpty) {

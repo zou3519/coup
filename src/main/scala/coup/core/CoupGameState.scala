@@ -8,7 +8,7 @@ import scala.util.Random
   * Initializer object
   */
 object CoupGameState {
-  def init: CoupGameState = {
+  def init(coins: Vector[Int] = Vector(2, 2)): CoupGameState = {
     val numPlayers = 2
 
     // Generate court deck and influences
@@ -21,14 +21,17 @@ object CoupGameState {
     new CoupGameState(
       courtDeck,              // deck
       mu.PlayerPiles.fill(numPlayers)(ArrayBuffer()), // discardPile
-      mu.PlayerPiles.fill(numPlayers)(2),     // coins
+      coins.to[ArrayBuffer],     // coins
       influences,             // influences
       ArrayBuffer(),                  // currentPlay
       mutable.Queue(PrimaryAction(0)),// pendingStages
       None                    // ambassadorDeck
     )
   }
-  def initWith(playerCards: Cards, otherPlayerCards: Cards): CoupGameState = {
+  def initWith(
+      playerCards: Cards,
+      otherPlayerCards: Cards,
+      coins: Vector[Int] = Vector(2, 2)): CoupGameState = {
     val numPlayers = 2
 
     val allCards = Character.characters.flatMap(x => Seq(x, x, x)).to[ArrayBuffer]
@@ -39,7 +42,7 @@ object CoupGameState {
     new CoupGameState(
       allCards,              // deck
       mu.PlayerPiles.fill(numPlayers)(ArrayBuffer()), // discardPile
-      mu.PlayerPiles.fill(numPlayers)(2),     // coins
+      coins.to[ArrayBuffer],     // coins
       influences,             // influences
       ArrayBuffer(),                  // currentPlay
       mutable.Queue(PrimaryAction(0)),// pendingStages
@@ -260,7 +263,7 @@ class CoupGameState(
       case foreignAid: ForeignAid => resolveForeignAid(foreignAid)
       case steal: Steal => resolveSteal(steal)
       case assassinate: Assassinate => resolveAssassinate(assassinate)
-      case _ => ???
+      case _ => ??? // TODO: exception here
     }
   }
 
