@@ -34,6 +34,27 @@ class CoupGameStateTest extends org.scalatest.FeatureSpec
       assert(testGameState.ambassadorDeck == correctGameState.ambassadorDeck)
   }
 
+  def assertPlayerLostInfluence(
+      player: PlayerT,
+      influence: Character.EnumVal,
+      oldGameState: CoupGameState,
+      newGameState: CoupGameState): Unit = {
+    newGameState.influences(player) :+ influence should contain theSameElementsAs
+      oldGameState.influences(player)
+    newGameState.discardPile(player) should contain theSameElementsAs
+      oldGameState.discardPile(player) :+ influence
+  }
+
+  def assertPlayerInfluencesAreUnchanged(
+      player: PlayerT,
+      oldGameState: CoupGameState,
+      newGameState: CoupGameState): Unit = {
+    newGameState.influences(player) should contain theSameElementsAs
+      oldGameState.influences(player)
+    newGameState.discardPile(player) should contain theSameElementsAs
+      oldGameState.discardPile(player)
+  }
+
   def nextPlayer(player: PlayerT): PlayerT = (player + 1)%2
 
   feature("income") {
@@ -100,10 +121,8 @@ class CoupGameStateTest extends org.scalatest.FeatureSpec
       assert((newGameState.coins(player) + 7) == oldGameState.coins(player))
 
       And("the other player loses a influence")
-      newGameState.influences(otherPlayer) :+ lostInfluence should contain theSameElementsAs
-        oldGameState.influences(otherPlayer)
-      newGameState.discardPile(otherPlayer) should contain theSameElementsAs
-        oldGameState.discardPile(otherPlayer) :+ lostInfluence
+      assertPlayerLostInfluence(otherPlayer, lostInfluence, oldGameState, newGameState)
+      assertPlayerInfluencesAreUnchanged(player, oldGameState, newGameState)
 
       And("it is the next player's turn")
       assert(newGameState.pendingStages.head.player != player)
@@ -190,14 +209,8 @@ class CoupGameStateTest extends org.scalatest.FeatureSpec
       assert(newGameState.coins == oldGameState.coins)
 
       And("only the challenging player loses an influence")
-      newGameState.influences(player) :+ lostInfluence should contain theSameElementsAs
-        oldGameState.influences(player)
-      newGameState.discardPile(player) should contain theSameElementsAs
-        oldGameState.discardPile(player) :+ lostInfluence
-      newGameState.influences(otherPlayer) should contain theSameElementsAs
-        oldGameState.influences(otherPlayer)
-      newGameState.discardPile(otherPlayer) should contain theSameElementsAs
-        oldGameState.discardPile(otherPlayer)
+      assertPlayerLostInfluence(player, lostInfluence, oldGameState, newGameState)
+      assertPlayerInfluencesAreUnchanged(otherPlayer, oldGameState, newGameState)
 
       And("it is the next player's turn")
       assert(newGameState.pendingStages.head.player != player)
@@ -225,14 +238,8 @@ class CoupGameStateTest extends org.scalatest.FeatureSpec
       assert(newGameState.coins(otherPlayer) == oldGameState.coins(otherPlayer))
 
       And("only the challenging player loses an influence")
-      newGameState.influences(otherPlayer) :+ lostInfluence should contain theSameElementsAs
-        oldGameState.influences(otherPlayer)
-      newGameState.discardPile(otherPlayer) should contain theSameElementsAs
-        oldGameState.discardPile(otherPlayer) :+ lostInfluence
-      newGameState.influences(player) should contain theSameElementsAs
-        oldGameState.influences(player)
-      newGameState.discardPile(player) should contain theSameElementsAs
-        oldGameState.discardPile(player)
+      assertPlayerLostInfluence(otherPlayer, lostInfluence, oldGameState, newGameState)
+      assertPlayerInfluencesAreUnchanged(player, oldGameState, newGameState)
 
       And("it is the next player's turn")
       assert(newGameState.pendingStages.head.player != player)
@@ -316,6 +323,10 @@ class CoupGameStateTest extends org.scalatest.FeatureSpec
       assert(newGameState.pendingStages.head.player != player)
       assert(newGameState.currentPlay.isEmpty)
 
+      And("only the challenged player loses an influence")
+      assertPlayerLostInfluence(player, lostInfluence, oldGameState, newGameState)
+      assertPlayerInfluencesAreUnchanged(otherPlayer, oldGameState, newGameState)
+
       And("everything else is unchanged")
       assertEquality(
         newGameState,
@@ -344,6 +355,9 @@ class CoupGameStateTest extends org.scalatest.FeatureSpec
       Then("the player stole two coins")
       assert(newGameState.coins(player) == oldGameState.coins(player) + 2)
       assert(newGameState.coins(otherPlayer) == oldGameState.coins(otherPlayer) - 2)
+
+      And("only the challenging player loses an influence")
+      assertPlayerLostInfluence(otherPlayer, lostInfluence, oldGameState, newGameState)
 
       And("it is the next player's turn")
       assert(newGameState.pendingStages.head.player != player)
@@ -399,11 +413,15 @@ class CoupGameStateTest extends org.scalatest.FeatureSpec
       newGameState.applyAction(Block(otherPlayer, player))
       newGameState.applyAction(Challenge(player, otherPlayer))
       newGameState.applyAction(ProveInfluence(otherPlayer, Captain))
-      newGameState.applyAction(LoseInfluence(player, Duke))
+      val lostInfluence = Duke
+      newGameState.applyAction(LoseInfluence(player, lostInfluence))
 
       Then("it is the next player's turn")
       assert(newGameState.pendingStages.head.player != player)
       assert(newGameState.currentPlay.isEmpty)
+
+      And("only the challenging player loses an influence")
+      assertPlayerLostInfluence(player, lostInfluence, oldGameState, newGameState)
 
       And("everything else is unchanged")
       assertEquality(
@@ -429,11 +447,15 @@ class CoupGameStateTest extends org.scalatest.FeatureSpec
       newGameState.applyAction(Block(otherPlayer, player))
       newGameState.applyAction(Challenge(player, otherPlayer))
       newGameState.applyAction(ProveInfluence(otherPlayer, Ambassador))
-      newGameState.applyAction(LoseInfluence(player, Duke))
+      val lostInfluence = Duke
+      newGameState.applyAction(LoseInfluence(player, lostInfluence))
 
       Then("it is the next player's turn")
       assert(newGameState.pendingStages.head.player != player)
       assert(newGameState.currentPlay.isEmpty)
+
+      And("only the challenging player loses an influence")
+      assertPlayerLostInfluence(player, lostInfluence, oldGameState, newGameState)
 
       And("everything else is unchanged")
       assertEquality(
@@ -463,6 +485,10 @@ class CoupGameStateTest extends org.scalatest.FeatureSpec
       Then("the player stole 2 coins")
       assert(newGameState.coins(player) == oldGameState.coins(player) + 2)
       assert(newGameState.coins(otherPlayer) == oldGameState.coins(otherPlayer) - 2)
+
+      And("only the challenged player loses an influence")
+      assertPlayerLostInfluence(otherPlayer, lostInfluence, oldGameState, newGameState)
+      assertPlayerInfluencesAreUnchanged(player, oldGameState, newGameState)
 
       And("it is the next player's turn")
       assert(newGameState.pendingStages.head.player != player)
