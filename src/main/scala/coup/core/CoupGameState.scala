@@ -19,7 +19,7 @@ object CoupGameState {
     val influences = dealtCards.grouped(2).to[ArrayBuffer]
 
     new CoupGameState(
-      courtDeck,              // deck
+      new CourtDeck(courtDeck),              // deck
       mu.PlayerPiles.fill(numPlayers)(ArrayBuffer()), // discardPile
       coins.to[ArrayBuffer],     // coins
       influences,             // influences
@@ -40,7 +40,7 @@ object CoupGameState {
     val influences = ArrayBuffer(playerCards, otherPlayerCards).map(_.to[ArrayBuffer])
 
     new CoupGameState(
-      allCards,              // deck
+      new CourtDeck(allCards),              // deck
       mu.PlayerPiles.fill(numPlayers)(ArrayBuffer()), // discardPile
       coins.to[ArrayBuffer],     // coins
       influences,             // influences
@@ -60,7 +60,7 @@ object CoupGameState {
   *                       When this is empty, the game is over.
   */
 class CoupGameState(
-    private val _courtDeck: mu.Cards,
+    private val _courtDeck: CourtDeck,
     private val _discardPile: mu.PlayerPiles[mu.Cards],
     private val _coins: mu.PlayerPiles[Int],
     private val _influences: mu.PlayerPiles[mu.Cards],
@@ -250,9 +250,15 @@ class CoupGameState(
   }
 
   private def applyProveInfluence(proveInfluence: ProveInfluence): Unit = {
-    // TODO: shuffle the revealed influence back in and draw new one
+    val player = proveInfluence.player
 
-    // Next player should lose influence
+    // Shuffle old influence into deck and get a new one
+    val oldInfluence = proveInfluence.provenCharacter
+    val newInfluence = _courtDeck.swapWithRandomCard(oldInfluence)
+    _influences(player) -= oldInfluence
+    _influences(player) += newInfluence
+
+    // Player who instigated challenge loses an influence
     val otherPlayer = nextPlayer(proveInfluence.player)
     _pendingStages.enqueue(DiscardInfluence(otherPlayer))
   }
