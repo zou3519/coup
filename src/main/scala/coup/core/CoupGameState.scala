@@ -196,7 +196,11 @@ class CoupGameState(
   }
 
 
-  private def applyResolveExchange(resolveExchange: ResolveExchange): Unit = ???
+  private def applyResolveExchange(resolveExchange: ResolveExchange): Unit = {
+    resolveExchange.returnedCharacters.foreach(_courtDeck.returnCard)
+    _influences(resolveExchange.player) --= resolveExchange.returnedCharacters
+    nextTurn()
+  }
 
   // TODO: this is really messy. cleanup sometime.
   private def applyLoseInfluence(loseInfluence: LoseInfluence): Unit = {
@@ -256,6 +260,7 @@ class CoupGameState(
       case foreignAid: ForeignAid => resolveForeignAid(foreignAid)
       case steal: Steal => resolveSteal(steal)
       case assassinate: Assassinate => resolveAssassinate(assassinate)
+      case exchange: Exchange => resolveExchange(exchange)
       case _ => ??? // TODO: exception here
     }
   }
@@ -287,5 +292,12 @@ class CoupGameState(
 
   private def resolveAssassinate(assassinate: Assassinate): Unit = {
     _pendingStages.enqueue(DiscardInfluence(assassinate.targetPlayer))
+  }
+
+  private def resolveExchange(exchange: Exchange): Unit = {
+    val player = exchange.player
+    _influences(player) += _courtDeck.takeRandomCard()
+    _influences(player) += _courtDeck.takeRandomCard()
+    _pendingStages.enqueue(ChooseExchange(player))
   }
 }
