@@ -16,8 +16,7 @@ class CoupGameStateTest extends org.scalatest.FeatureSpec
     testCoins: Boolean = true,
     testInfluences: Boolean = true,
     testCurrentPlay: Boolean = false,
-    testPendingStages: Boolean = false,
-    testAmbassadorDeck: Boolean = false
+    testPendingStages: Boolean = false
   ): Unit = {
     if (testCourtDeck)
       assert(testGameState.courtDeck == correctGameState.courtDeck)
@@ -31,8 +30,6 @@ class CoupGameStateTest extends org.scalatest.FeatureSpec
       assert(testGameState.currentPlay == correctGameState.currentPlay)
     if (testPendingStages)
       assert(testGameState.pendingStages == correctGameState.pendingStages)
-    if (testAmbassadorDeck)
-      assert(testGameState.ambassadorDeck == correctGameState.ambassadorDeck)
   }
 
   def assertPlayerLostInfluence(

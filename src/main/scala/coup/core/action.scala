@@ -21,6 +21,12 @@ case class Challenge(player: PlayerT, targetPlayer: PlayerT) extends Action
 
 /* Resolutions. After these actions, the original action is resolved or blocked. */
 case class DoNothing(player: PlayerT) extends Action
-case class ResolveExchange(player: PlayerT, returnedCharacters: Seq[Character.EnumVal]) extends Action
-case class LoseInfluence(player: PlayerT, lostCharacter: Character.EnumVal) extends Action
-case class ProveInfluence(player: PlayerT, provenCharacter: Character.EnumVal) extends Action
+case class LoseInfluence(player: PlayerT, lostCharacter: Card) extends Action
+case class ProveInfluence(player: PlayerT, provenCharacter: Card) extends Action
+
+/*
+ * TODO: other player really shouldn't be able to know what was returned...
+ * however, the player needs a way to tell the game state about what it is returning.
+ * such information would need to be censored in a GameState -> PartialGameState conversion
+ */
+case class ResolveExchange(player: PlayerT, returnedCharacters: Vector[Card]) extends Action

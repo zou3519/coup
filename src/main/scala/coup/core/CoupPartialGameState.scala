@@ -10,7 +10,6 @@ class CoupPartialGameState(
     val opponentInfluencesSize: Int,
     val currentPlay: Seq[Action],
     val pendingStages: Vector[PendingStage],
-    val myAmbassadorDeck: Option[Cards],
     val me: PlayerT) {
 
   /* Generates a random CoupGameStage based on this partial state */

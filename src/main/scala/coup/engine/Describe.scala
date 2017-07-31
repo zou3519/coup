@@ -13,7 +13,6 @@ object Describe {
      "Influences: " + gameState.influences + "\n" +
     "Current Play: " + gameState.currentPlay + "\n" +
     "Pending: " + gameState.pendingStages + "\n" +
-    "Ambassador deck: " + gameState.ambassadorDeck + "\n" +
     "-----------------------------------------------------------"
   }
 
@@ -27,7 +26,6 @@ object Describe {
     "Opponent's Influence: " + partialGameState.opponentInfluencesSize + "\n" +
     "Current Play: " + partialGameState.currentPlay + "\n" +
     "Pending: " + partialGameState.pendingStages + "\n" +
-    "Ambassador deck: " + partialGameState.myAmbassadorDeck + "\n" +
     "Current player: " + partialGameState.me + "\n" +
     "-----------------------------------------------------------"
   }

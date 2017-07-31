@@ -1,5 +1,7 @@
 package coup.core
 
+import scala.collection.mutable.ArrayBuffer
+
 object Rules {
 
   def legalActions(partialGameState: CoupPartialGameState): IndexedSeq[Action] = {
@@ -61,7 +63,13 @@ object Rules {
   }
 
   private def legalChooseExchanges(
-      partialGameState: CoupPartialGameState): IndexedSeq[Action] = ???
+      partialGameState: CoupPartialGameState): IndexedSeq[Action] = {
+    require(partialGameState.myInfluences.length >= 3)
+
+    val player = partialGameState.me
+    val possibleReturnedCards = partialGameState.myInfluences.combinations(2)
+    possibleReturnedCards.map(ResolveExchange(player, _)).toVector
+  }
 
   private def legalDiscardInfluences(
       partialGameState: CoupPartialGameState): IndexedSeq[Action] = {
@@ -270,8 +278,14 @@ object Rules {
     val player = resolveExchange.player
     gameState.pendingStages.head match {
       case ChooseExchange(exchgPlayer) =>
-        exchgPlayer == player
-        // TODO: validate exchanged cards
+
+        // TODO: there has to be a better way to do this...
+        val influences = gameState.influences(exchgPlayer).to[ArrayBuffer]
+        influences --= resolveExchange.returnedCharacters
+        val validReturn = influences.length == gameState.influences(exchgPlayer).length - 2
+
+        (exchgPlayer == player) && validReturn
+
       case _ => false
     }
   }

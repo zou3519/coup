@@ -24,8 +24,7 @@ object CoupGameState {
       coins.to[ArrayBuffer],     // coins
       influences,             // influences
       ArrayBuffer(),                  // currentPlay
-      mutable.Queue(PrimaryAction(0)),// pendingStages
-      None                    // ambassadorDeck
+      mutable.Queue(PrimaryAction(0)) // pendingStages
     )
   }
   def initWith(
@@ -45,8 +44,7 @@ object CoupGameState {
       coins.to[ArrayBuffer],     // coins
       influences,             // influences
       ArrayBuffer(),                  // currentPlay
-      mutable.Queue(PrimaryAction(0)),// pendingStages
-      None                    // ambassadorDeck
+      mutable.Queue(PrimaryAction(0)) // pendingStages
     )
   }
 }
@@ -65,8 +63,7 @@ class CoupGameState(
     private val _coins: mu.PlayerPiles[Int],
     private val _influences: mu.PlayerPiles[mu.Cards],
     private val _currentPlay: ArrayBuffer[Action],
-    private val _pendingStages: mutable.Queue[PendingStage],
-    private var _ambassadorDeck: Option[mu.Cards]) {
+    private val _pendingStages: mutable.Queue[PendingStage]) {
 
   /* (slow) Accessors */
   def courtDeck: Cards = _courtDeck.toVector
@@ -75,7 +72,6 @@ class CoupGameState(
   def influences: PlayerPiles[Cards] = _influences.map(_.toVector).toVector
   def currentPlay: Vector[Action] = _currentPlay.toVector
   def pendingStages: Vector[PendingStage] = _pendingStages.toVector
-  def ambassadorDeck: Option[Cards] = _ambassadorDeck.map(_.toVector)
 
   def copy: CoupGameState = {
     new CoupGameState(
@@ -84,20 +80,12 @@ class CoupGameState(
       _coins.clone,
       _influences.map(_.clone),
       _currentPlay.clone,
-      _pendingStages.clone,
-      _ambassadorDeck.map(_.clone)
+      _pendingStages.clone
     )
   }
 
   /* From the view of a player */
   def toPartialGameState(player: PlayerT): CoupPartialGameState = {
-
-    // Hide ambassador deck if necessary
-    val showAmbassadorDeck = _pendingStages.front match {
-      case ChooseExchange(requestedPlayer) =>
-        if (requestedPlayer == player) _ambassadorDeck else None
-      case _ => None
-    }
 
     new CoupPartialGameState(
       _courtDeck.length,
@@ -107,7 +95,6 @@ class CoupGameState(
       _influences(nextPlayer(player)).size, // assumes 2p
       _currentPlay.toVector,
       _pendingStages.toVector,
-      showAmbassadorDeck.map(_.toVector),
       player
     )
   }
